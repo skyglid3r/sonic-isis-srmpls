@@ -1,0 +1,86 @@
+name: sonic-srmpls
+
+mgmt:
+  network: sonic-srmpls-mgmt
+  ipv4-subnet: 172.40.40.0/24
+
+prefix: ""
+
+topology:
+  defaults:
+    kind: sonic-vm
+
+  kinds:
+    sonic-vm:
+      image: vrnetlab/sonic_sonic-vs:2511
+    linux:
+      image: ghcr.io/mfzhsn/network-multitool-sshd:0.0.5
+
+  nodes:
+    # Provider Edge / WAN Edge routers
+    leaf11:
+      kind: sonic-vm
+      mgmt-ipv4: 172.40.40.2
+
+    leaf12:
+      kind: sonic-vm
+      mgmt-ipv4: 172.40.40.4
+
+    # MPLS Provider / Core routers
+    spine11:
+      kind: sonic-vm
+      mgmt-ipv4: 172.40.40.3
+
+    spine12:
+      kind: sonic-vm
+      mgmt-ipv4: 172.40.40.5
+
+    # BLUE VPN client at PE1
+    client11:
+      kind: linux
+      mgmt-ipv4: 172.40.40.10
+      exec:
+        - ip link set eth1 up
+        - ip address add 172.16.10.50/24 dev eth1
+        - ip route add 172.16.20.0/24 via 172.16.10.254
+
+    # RED VPN client at PE1
+    client12:
+      kind: linux
+      mgmt-ipv4: 172.40.40.11
+      exec:
+        - ip link set eth1 up
+        - ip address add 10.80.1.1/24 dev eth1
+        - ip route add 10.90.1.0/24 via 10.80.1.254
+
+    # BLUE VPN client at PE2
+    client13:
+      kind: linux
+      mgmt-ipv4: 172.40.40.12
+      exec:
+        - ip link set eth1 up
+        - ip address add 172.16.20.60/24 dev eth1
+        - ip route add 172.16.10.0/24 via 172.16.20.254
+
+    # RED VPN client at PE2
+    client14:
+      kind: linux
+      mgmt-ipv4: 172.40.40.13
+      exec:
+        - ip link set eth1 up
+        - ip address add 10.90.1.1/24 dev eth1
+        - ip route add 10.80.1.0/24 via 10.90.1.254
+
+  links:
+    # PE-to-P routed core links
+    - endpoints: ["leaf11:eth1", "spine11:eth1"]
+    - endpoints: ["leaf12:eth1", "spine11:eth2"]
+    - endpoints: ["leaf11:eth2", "spine12:eth1"]
+    - endpoints: ["leaf12:eth2", "spine12:eth2"]
+
+    # PE-to-client access links
+    - endpoints: ["client11:eth1", "leaf11:eth10"]
+    - endpoints: ["client12:eth1", "leaf11:eth11"]
+    - endpoints: ["client13:eth1", "leaf12:eth10"]
+    - endpoints: ["client14:eth1", "leaf12:eth11"]
+
